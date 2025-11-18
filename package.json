@@ -1,5 +1,5 @@
 {
-  "name": "beds24-api-v2-sdk",
+  "name": "@lionlai/beds24-v2-sdk",
   "version": "0.1.0",
   "description": "TypeScript client for the Beds24 API V2, ready for Nuxt and Next apps.",
   "type": "module",

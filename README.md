@@ -13,9 +13,9 @@ ini# Beds24 API V2 SDK
 ## 安裝
 
 ```bash
-npm install beds24-api-v2-sdk
+npm install @lionlai/beds24-v2-sdk
 # 或
-pnpm add beds24-api-v2-sdk
+pnpm add @lionlai/beds24-v2-sdk
 ```
 
 ## 產生型別（開發者）
@@ -31,7 +31,7 @@ npm run generate
 ## 使用方式
 
 ```ts
-import { createBeds24Client, parseRateLimitHeaders } from 'beds24-api-v2-sdk';
+import { createBeds24Client, parseRateLimitHeaders } from '@lionlai/beds24-v2-sdk';
 
 const beds24 = createBeds24Client({
   token: process.env.BEDS24_TOKEN,
@@ -54,7 +54,7 @@ console.log(parseRateLimitHeaders(result.response));
 
 ```ts
 // plugins/beds24.client.ts
-import { createBeds24Client } from 'beds24-api-v2-sdk';
+import { createBeds24Client } from '@lionlai/beds24-v2-sdk';
 
 export default defineNuxtPlugin(() => {
   const runtimeConfig = useRuntimeConfig();
@@ -80,7 +80,7 @@ const { data } = await $beds24.GET('/inventory/rooms/availability', {
 ```ts
 // app/api/bookings/route.ts
 import { NextResponse } from 'next/server';
-import { createBeds24Client } from 'beds24-api-v2-sdk';
+import { createBeds24Client } from '@lionlai/beds24-v2-sdk';
 
 const beds24 = createBeds24Client({
   token: process.env.BEDS24_TOKEN,
