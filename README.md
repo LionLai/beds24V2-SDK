@@ -50,6 +50,30 @@ console.log(result.data?.data);
 console.log(parseRateLimitHeaders(result.response));
 ```
 
+### 自動刷新 Token
+
+若需要自動處理 Token 過期與刷新，可使用 `createAutoRefreshClient`：
+
+```ts
+import { createBeds24Client, createAutoRefreshClient } from '@lionlai/beds24-v2-sdk';
+
+const baseClient = createBeds24Client({
+  token: 'YOUR_ACCESS_TOKEN'
+});
+
+const client = createAutoRefreshClient(
+  baseClient, 
+  'YOUR_REFRESH_TOKEN', 
+  (newToken) => {
+    // 當 Token 刷新成功時觸發，可在此儲存新 Token
+    console.log('Token updated!', newToken);
+  }
+);
+
+// 當 Token 過期 (401/403) 時，會自動嘗試刷新並重試請求
+const { data } = await client.GET('/bookings', { ... });
+```
+
 ### Nuxt.js Plugin 範例
 
 ```ts
@@ -108,6 +132,7 @@ export async function GET() {
   - `fetch`：自訂 fetch 實作。
   - `headers`：所有請求共用 header。
   - `middleware`：`openapi-fetch` middleware array，可用於 logging、error tracking。
+- `createAutoRefreshClient(client, refreshToken, onTokenUpdate)`：包裝既有 client，加入自動刷新 Token 機制。
 - 其他 `openapi-fetch` 內建方法：`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`, `HEAD`.
 - `parseRateLimitHeaders(response)`：回傳 `{ limit, remaining, resetsInSeconds, requestCost }`。
 
