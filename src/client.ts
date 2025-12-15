@@ -3,20 +3,9 @@ import type { paths } from './generated/beds24';
 
 const DEFAULT_BASE_URL = 'https://api.beds24.com/v2';
 
-export interface AuthOptions {
-  /**
-   * Beds24 long life token or refresh token.
-   */
-  token?: string | null;
-  /**
-   * Organization header if you are an integration partner.
-   */
-  organization?: string | null;
-}
-
 type OpenApiFetchClient = ReturnType<typeof createClient<paths>>;
 
-export interface Beds24ClientOptions extends AuthOptions {
+export interface Beds24ClientOptions {
   /**
    * Fully qualified API base URL. Defaults to https://api.beds24.com/v2
    */
@@ -43,30 +32,7 @@ export interface Beds24RateLimit {
   requestCost?: number;
 }
 
-export interface Beds24ClientState {
-  baseUrl: string;
-  headers: Record<string, string>;
-  auth: Required<AuthOptions>;
-}
-
-export interface Beds24Client extends OpenApiFetchClient {
-  /**
-   * Returns the current immutable configuration snapshot.
-   */
-  readonly config: Beds24ClientState;
-  /**
-   * Updates only the token header.
-   */
-  setToken(token?: string | null): void;
-  /**
-   * Updates only the organization header.
-   */
-  setOrganization(organization?: string | null): void;
-  /**
-   * Convenience helper to update both token and organization at once.
-   */
-  setAuth(auth: AuthOptions): void;
-}
+export type Beds24Client = OpenApiFetchClient;
 
 /**
  * Parse Beds24 rate limit headers from a fetch Response object.
@@ -87,6 +53,24 @@ export function parseRateLimitHeaders(response: Response): Beds24RateLimit {
   };
 }
 
+/**
+ * 創建 Beds24 API 客戶端
+ * 
+ * Token 管理：此客戶端不保管 token，用戶需要在每次請求時通過 headers 傳入
+ * 
+ * @example
+ * ```typescript
+ * const client = createBeds24Client();
+ * 
+ * // 每次請求時傳入 token
+ * const result = await client.GET('/bookings', {
+ *   headers: {
+ *     token: 'your-token-here',
+ *     organization: 'your-org' // 可選
+ *   }
+ * });
+ * ```
+ */
 export function createBeds24Client(options: Beds24ClientOptions = {}): Beds24Client {
   const fetchImpl = options.fetch ?? globalThis.fetch;
   if (!fetchImpl) {
@@ -98,27 +82,32 @@ export function createBeds24Client(options: Beds24ClientOptions = {}): Beds24Cli
     ...(options.headers ?? {})
   };
 
-  const authState: Required<AuthOptions> = {
-    token: options.token ?? null,
-    organization: options.organization ?? null
-  };
+  // 簡化的 fetch wrapper，只處理 base headers
+  // 用戶的 token 和 organization 通過每次請求的 headers 傳入
+  const withBaseHeadersFetch: typeof fetch = (input, init = {}) => {
+    const existingHeaders = input instanceof Request 
+      ? input.headers 
+      : (init.headers ?? {});
+    
+    const headers = new Headers(existingHeaders);
 
-  const withAuthFetch: typeof fetch = (input, init = {}) => {
-    const headers = new Headers(init.headers ?? {});
-
+    // 只添加 base headers（不包含 token）
     Object.entries(baseHeaders).forEach(([key, value]) => {
-      if (value !== undefined) {
+      if (value !== undefined && !headers.has(key)) {
         headers.set(key, value);
       }
     });
 
-    if (authState.token) {
-      headers.set('token', authState.token);
-    }
-    if (authState.organization) {
-      headers.set('organization', authState.organization);
+    // 如果 input 是 Request，創建新的 Request
+    if (input instanceof Request) {
+      const newRequest = new Request(input, {
+        ...init,
+        headers
+      });
+      return fetchImpl(newRequest);
     }
 
+    // 否則直接傳遞
     return fetchImpl(input, {
       ...init,
       headers
@@ -127,47 +116,11 @@ export function createBeds24Client(options: Beds24ClientOptions = {}): Beds24Cli
 
   const client = createClient<paths>({
     baseUrl: options.baseUrl ?? DEFAULT_BASE_URL,
-    fetch: withAuthFetch
+    fetch: withBaseHeadersFetch
   });
 
   options.middleware?.forEach((mw) => client.use(mw));
 
-  const state: Beds24ClientState = {
-    baseUrl: options.baseUrl ?? DEFAULT_BASE_URL,
-    headers: { ...baseHeaders },
-    auth: { ...authState }
-  };
-
-  const updateStateSnapshot = () => {
-    state.headers = { ...baseHeaders };
-    state.auth = { ...authState };
-  };
-
-  const setToken = (token?: string | null) => {
-    authState.token = token ?? null;
-    updateStateSnapshot();
-  };
-
-  const setOrganization = (organization?: string | null) => {
-    authState.organization = organization ?? null;
-    updateStateSnapshot();
-  };
-
-  const setAuth = (auth: AuthOptions) => {
-    if ('token' in auth) {
-      authState.token = auth.token ?? null;
-    }
-    if ('organization' in auth) {
-      authState.organization = auth.organization ?? null;
-    }
-    updateStateSnapshot();
-  };
-
-  return Object.assign(client, {
-    config: state,
-    setToken,
-    setOrganization,
-    setAuth
-  }) as Beds24Client;
+  return client;
 }
 
